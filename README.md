@@ -2,15 +2,19 @@
 ## Setup
 
 1. Clone this repository
-2. Install the required dependencies:
+2. (Optional) Create your own virtual environment
+   ``` python -m venv venv
+      source venv/bin/activate    # On Windows, use: venv\Scripts\activate
+```
+4. Install the required dependencies:
    ```
    pip install -r requirements.txt
    ```
-3. Create a `.env` file based on the `example.env` file:
+5. Create a `.env` file based on the `example.env` file:
    ```
    cp example.env .env
    ```
-4. Edit the `.env` file and add your OpenAI API key:
+6. Edit the `.env` file and add your OpenAI API key:
    ```
    OPENAI_API_KEY=your_openai_api_key_here
    ```
