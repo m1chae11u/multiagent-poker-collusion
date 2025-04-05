@@ -1,6 +1,3 @@
-# Multi-Agent Poker with OpenAI LLMs
-
-This project implements a Texas Hold'em poker game where some players are controlled by OpenAI LLMs and others are human-controlled.
 
 ## Setup
 
@@ -66,7 +63,7 @@ python run_game.py --max-players 8 --ai-players 0,1,2 --model gpt-3.5-turbo
 
 ### How to Play
 
-1. When it's your turn, you'll be prompted to enter an action.
+1. When it's your turn, you'll be prompted to enter an action. Note: make sure to press backspace a couple times before inputting action as currently an issue with ui.
 2. Available actions are:
    - `check`: Pass the action
    - `call`: Match the current bet
