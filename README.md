@@ -1,11 +1,13 @@
 
 ## Setup
 
-1. Clone this repository
-2. (Optional) Create your own virtual environment
-   ``` python -m venv venv
-      source venv/bin/activate    # On Windows, use: venv\Scripts\activate
-```
+1. Clone this repository.
+
+2. (Optional) Create your own virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate    # On Windows, use: venv\Scripts\activate
+   ```
 4. Install the required dependencies:
    ```
    pip install -r requirements.txt
