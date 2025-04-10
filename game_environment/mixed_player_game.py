@@ -114,6 +114,7 @@ class MixedPlayerGame:
         """
         Run the game until it's over.
         """
+        error_message = None
         try:
             while self.game.is_game_running():
                 self.game.start_hand()
@@ -157,7 +158,7 @@ class MixedPlayerGame:
             error_message = None
         finally:
             # Always clean up the curses session
-            self.gui.cleanup()
+            self.gui.hide()
             # Reset the terminal
             os.system('reset')
             

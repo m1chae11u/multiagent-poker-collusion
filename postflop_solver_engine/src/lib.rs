@@ -218,8 +218,8 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     let mut game = PostFlopGame::with_config(card_config, action_tree).unwrap();
     game.allocate_memory(false);
     
-    // Solve to a target exploitability
-    let max_num_iterations = 50;
+    // Solve with just 1 iteration for faster speed
+    let max_num_iterations = 1; // Changed from 50 to 1
     let target_exploitability = game.tree_config().starting_pot as f32 * 0.05;
     solve(&mut game, max_num_iterations, target_exploitability, true);
     
@@ -239,7 +239,7 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     Ok(SolverDecision {
         action,
         amount,
-        reason: format!("Optimal action based on GTO strategy"),
+        reason: format!("Optimal action based on GTO strategy (1 iteration)"),
     })
 }
 

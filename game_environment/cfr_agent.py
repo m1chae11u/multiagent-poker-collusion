@@ -7,7 +7,8 @@ from typing import Tuple, Optional
 from texasholdem.game.game import TexasHoldEm
 from texasholdem.game.action_type import ActionType
 from texasholdem.card.card import Card
-import postflop_solver_engine
+import postflop_solver
+from postflop_solver import SolverState, get_optimal_action
 
 class CFRAgent:
     """
@@ -33,11 +34,22 @@ class CFRAgent:
         """
         # Get player's hand
         hand = game.get_hand(player_id)
-        hole_cards = [card.pretty_string.strip("[] ") for card in hand]
+        # Format cards as "Rs" where R is rank and s is suit (no spaces)
+        # Sort cards by rank in descending order (higher rank first)
+        hole_cards = []
+        for card in sorted(hand, key=lambda c: c.rank, reverse=True):
+            rank = Card.STR_RANKS[card.rank]
+            suit = Card.INT_SUIT_TO_CHAR_SUIT[card.suit]
+            hole_cards.append(f"{rank}{suit}")
 
         # Get community cards
         community_cards = game.board
-        board_cards = [card.pretty_string.strip("[] ") for card in community_cards] if community_cards else []
+        board_cards = []
+        if community_cards:
+            for card in community_cards:
+                rank = Card.STR_RANKS[card.rank]
+                suit = Card.INT_SUIT_TO_CHAR_SUIT[card.suit]
+                board_cards.append(f"{rank}{suit}")
 
         # Get pot information
         pot_amount = game._get_last_pot().get_total_amount()
@@ -90,10 +102,20 @@ class CFRAgent:
             return ActionType.CALL, None
 
         # Format the game state for the solver
-        state = self._format_game_state(game, player_id)
+        state_dict = self._format_game_state(game, player_id)
+        
+        # Create a SolverState object
+        state = SolverState(
+            board_cards=state_dict["board_cards"],
+            hole_cards=state_dict["hole_cards"],
+            pot_size=state_dict["pot_size"],
+            stack_sizes=state_dict["stack_sizes"],
+            position=state_dict["position"],
+            betting_history=state_dict["betting_history"]
+        )
         
         # Get the optimal action from the solver
-        decision = postflop_solver_engine.get_optimal_action(state)
+        decision = get_optimal_action(state)
         
         # Convert the solver's decision to an action
         if decision.action == "check":
