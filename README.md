@@ -1,27 +1,65 @@
-
 ## Setup
 
 1. Clone this repository.
 
-2. (Optional) Create your own virtual environment:
+2. Create a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate    # On Windows, use: venv\Scripts\activate
    ```
-4. Install the required dependencies:
-   ```
+
+3. Install the required dependencies:
+   ```bash
    pip install -r requirements.txt
    ```
-5. Create a `.env` file based on the `example.env` file:
+
+4. Build and install the postflop solver:
+   ```bash
+   cd postflop_solver_engine
+   maturin develop
+   cd ..
    ```
+
+5. Create a `.env` file based on the `example.env` file:
+   ```bash
    cp example.env .env
    ```
+
 6. Edit the `.env` file and add your OpenAI API key:
    ```
    OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 ## Usage
+
+### Testing the Postflop Solver
+
+To test the postflop solver:
+
+```python
+from postflop_solver import SolverState, get_optimal_action
+
+# Create a test state
+state = SolverState(
+    board_cards=["Ah", "Kh", "Qh"],  # Flop cards
+    hole_cards=["Jh", "Th"],         # Player's hole cards
+    pot_size=100,                     # Current pot size
+    stack_sizes=[900, 900],          # Remaining stack sizes
+    position=0,                       # Player's position (0 for OOP, 1 for IP)
+    betting_history=["check", "bet_75"]  # History of betting actions
+)
+
+# Get the optimal action
+result = get_optimal_action(state)
+print(f"Optimal action: {result.action}")
+print(f"Amount: {result.amount}")
+print(f"Reason: {result.reason}")
+```
+
+Or use the test script:
+```bash
+python test_solver.py
+```
 
 ### Running the Game
 

@@ -96,20 +96,56 @@ use pyo3::prelude::*;
 #[cfg(feature = "python")]
 use pyo3::wrap_pyfunction;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[cfg(feature = "python")]
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SolverState {
+    #[pyo3(get, set)]
     pub board_cards: Vec<String>,
+    #[pyo3(get, set)]
     pub hole_cards: Vec<String>,
+    #[pyo3(get, set)]
     pub pot_size: i32,
+    #[pyo3(get, set)]
     pub stack_sizes: Vec<i32>,
+    #[pyo3(get, set)]
     pub position: i32,
+    #[pyo3(get, set)]
     pub betting_history: Vec<String>,
 }
 
+#[cfg(feature = "python")]
+#[pymethods]
+impl SolverState {
+    #[new]
+    fn new(
+        board_cards: Vec<String>,
+        hole_cards: Vec<String>,
+        pot_size: i32,
+        stack_sizes: Vec<i32>,
+        position: i32,
+        betting_history: Vec<String>,
+    ) -> Self {
+        SolverState {
+            board_cards,
+            hole_cards,
+            pot_size,
+            stack_sizes,
+            position,
+            betting_history,
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+#[pyclass]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SolverDecision {
+    #[pyo3(get, set)]
     pub action: String,
+    #[pyo3(get, set)]
     pub amount: Option<i32>,
+    #[pyo3(get, set)]
     pub reason: String,
 }
 
@@ -121,13 +157,14 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     
     // Parse board cards
     let flop = if solver_state.board_cards.len() >= 3 {
-        flop_from_str(&format!("{}{}{}", 
+        let flop_str = format!("{}{}{}", 
             solver_state.board_cards[0], 
             solver_state.board_cards[1], 
             solver_state.board_cards[2]
-        )).unwrap_or(NOT_DEALT)
+        );
+        flop_from_str(&flop_str).unwrap_or([NOT_DEALT, NOT_DEALT, NOT_DEALT])
     } else {
-        NOT_DEALT
+        [NOT_DEALT, NOT_DEALT, NOT_DEALT]
     };
     
     let turn = if solver_state.board_cards.len() >= 4 {
@@ -182,8 +219,8 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     game.allocate_memory(false);
     
     // Solve to a target exploitability
-    let max_num_iterations = 1000;
-    let target_exploitability = game.tree_config().starting_pot as f32 * 0.005; // 0.5% of pot
+    let max_num_iterations = 50;
+    let target_exploitability = game.tree_config().starting_pot as f32 * 0.05;
     solve(&mut game, max_num_iterations, target_exploitability, true);
     
     // Get available actions
@@ -194,7 +231,7 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
         Some(Action::Check) => ("check".to_string(), None),
         Some(Action::Bet(amount)) => ("bet".to_string(), Some(*amount as i32)),
         Some(Action::Raise(amount)) => ("raise".to_string(), Some(*amount as i32)),
-        Some(Action::AllIn) => ("all_in".to_string(), Some(solver_state.stack_sizes[solver_state.position as usize])),
+        Some(Action::AllIn(_)) => ("all_in".to_string(), Some(solver_state.stack_sizes[solver_state.position as usize])),
         _ => ("fold".to_string(), None),
     };
     
@@ -202,14 +239,14 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     Ok(SolverDecision {
         action,
         amount,
-        reason: format!("Optimal action based on GTO strategy with {:.2}% exploitability", 
-            game.exploitability() * 100.0),
+        reason: format!("Optimal action based on GTO strategy"),
     })
 }
 
 #[cfg(feature = "python")]
 #[pymodule]
-fn poker_solver(_py: Python, m: &PyModule) -> PyResult<()> {
+fn postflop_solver(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_optimal_action, m)?)?;
+    m.add_class::<SolverState>()?;
     Ok(())
 }
