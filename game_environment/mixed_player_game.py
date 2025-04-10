@@ -150,12 +150,20 @@ class MixedPlayerGame:
             print("Game over!")
             
         except Exception as e:
-            print(f"\nError occurred: {str(e)}")
+            # Save the error message
+            error_message = f"\nError occurred: {str(e)}"
+        else:
+            # No error occurred
+            error_message = None
         finally:
             # Always clean up the curses session
             self.gui.cleanup()
             # Reset the terminal
             os.system('reset')
+            
+            # Display the error message after cleanup if there was one
+            if error_message:
+                print(error_message)
 
 
 if __name__ == "__main__":
