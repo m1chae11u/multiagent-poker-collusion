@@ -87,3 +87,48 @@ pub use mutex_like::*;
 pub use range::*;
 pub use solver::*;
 pub use utility::*;
+
+use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SolverState {
+    pub board_cards: Vec<String>,
+    pub hole_cards: Vec<String>,
+    pub pot_size: i32,
+    pub stack_sizes: Vec<i32>,
+    pub position: i32,
+    pub betting_history: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SolverDecision {
+    pub action: String,
+    pub amount: Option<i32>,
+    pub reason: String,
+}
+
+#[pyfunction]
+fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
+    // Convert Python state to Rust state
+    let solver_state: SolverState = state.extract()?;
+    
+    // TODO: Initialize solver with state
+    // TODO: Run solver to get optimal action
+    // TODO: Convert solver action to decision format
+    
+    // For now, return a dummy decision
+    Ok(SolverDecision {
+        action: "check".to_string(),
+        amount: None,
+        reason: "Solver not yet implemented".to_string(),
+    })
+}
+
+#[pymodule]
+fn poker_solver(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_optimal_action, m)?)?;
+    Ok(())
+}

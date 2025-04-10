@@ -11,4 +11,5 @@ while game.is_game_running():
         gui.run_step()
 
     path = game.export_history('./pgns')     # save history
+    game.export_history('./data') 
     gui.replay_history(path)                    # replay history

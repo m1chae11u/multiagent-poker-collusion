@@ -10,10 +10,11 @@ Texas Hold Em Notation Conventions:
 
 """
 from __future__ import annotations
-from typing import Optional, Union, Tuple, List, Dict
+from typing import Optional, Union, Tuple, List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import json
 
 from texasholdem.game.action_type import ActionType
 from texasholdem.card.card import Card
@@ -669,3 +670,111 @@ class History:
             if history_item:
                 history.extend(history_item.actions)
         return history
+
+    def to_json(self) -> Dict[str, Any]:
+        """
+        Convert the history to a JSON-serializable dictionary.
+        
+        Returns:
+            Dict[str, Any]: A dictionary representation of the history
+        """
+        def card_to_dict(card: Card) -> Dict[str, Any]:
+            # Map suit integers to string names
+            suit_map = {
+                1: "spades",
+                2: "hearts",
+                4: "diamonds",
+                8: "clubs"
+            }
+            
+            return {
+                "rank": card.rank,
+                "suit": suit_map[card.suit]
+            }
+        
+        def action_to_dict(action: PlayerAction) -> Dict[str, Any]:
+            return {
+                "player_id": action.player_id,
+                "action_type": action.action_type.name,
+                "total": action.total,
+                "value": action.value
+            }
+        
+        def betting_round_to_dict(round_history: Optional[BettingRoundHistory]) -> Optional[Dict[str, Any]]:
+            if round_history is None:
+                return None
+            return {
+                "new_cards": [card_to_dict(card) for card in round_history.new_cards],
+                "actions": [action_to_dict(action) for action in round_history.actions]
+            }
+        
+        def prehand_to_dict(prehand: PrehandHistory) -> Dict[str, Any]:
+            return {
+                "btn_loc": prehand.btn_loc,
+                "big_blind": prehand.big_blind,
+                "small_blind": prehand.small_blind,
+                "player_chips": prehand.player_chips,
+                "player_cards": {
+                    str(player_id): [card_to_dict(card) for card in cards]
+                    for player_id, cards in prehand.player_cards.items()
+                }
+            }
+        
+        def settle_to_dict(settle: SettleHistory) -> Dict[str, Any]:
+            return {
+                "new_cards": [card_to_dict(card) for card in settle.new_cards],
+                "pot_winners": {
+                    str(pot_id): {
+                        "amount": amount,
+                        "best_rank": best_rank,
+                        "winners": winners
+                    }
+                    for pot_id, (amount, best_rank, winners) in settle.pot_winners.items()
+                }
+            }
+        
+        return {
+            "prehand": prehand_to_dict(self.prehand) if self.prehand else None,
+            "preflop": betting_round_to_dict(self.preflop),
+            "flop": betting_round_to_dict(self.flop),
+            "turn": betting_round_to_dict(self.turn),
+            "river": betting_round_to_dict(self.river),
+            "settle": settle_to_dict(self.settle) if self.settle else None
+        }
+
+    def export_history_json(
+        self, path: Union[str, os.PathLike] = "./texas.json"
+    ) -> os.PathLike:
+        """
+        Exports the hand history to a JSON file. If a directory is given,
+        finds a name of the form :code:`texas(n).json` to export to.
+
+        Arguments:
+            path (str | os.PathLike]): The directory or file to export the history to, defaults
+                to the current working directory at the file `./texas.json`
+        Returns:
+            os.PathLike: The path to the history file
+        """
+        path_or_dir = Path(path)
+        hist_path = path_or_dir
+
+        if not hist_path.suffixes:
+            hist_path.mkdir(parents=True, exist_ok=True)
+            hist_path = hist_path / "texas.json"
+
+        if ".json" not in hist_path.suffixes:
+            hist_path = hist_path.parent / f"{hist_path.name}.json"
+
+        # resolve lowest file_num
+        original_path = hist_path
+        num = 1
+        while hist_path.exists():
+            hist_path = (
+                original_path.parent / f"{original_path.stem}({num}).json"
+            )
+            num += 1
+
+        with open(hist_path, mode="w+", encoding="utf-8") as file:
+            json.dump(self.to_json(), file, indent=2)
+
+        return hist_path.absolute().resolve()

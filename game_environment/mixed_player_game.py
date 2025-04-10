@@ -4,6 +4,7 @@ This module provides a game where some players are controlled by LLMs and others
 """
 
 import os
+import time
 from typing import List, Dict, Optional, Tuple, Set
 from dotenv import load_dotenv
 from texasholdem.game.game import TexasHoldEm
@@ -99,36 +100,48 @@ class MixedPlayerGame:
         """
         Run the game until it's over.
         """
-        while self.game.is_game_running():
-            self.game.start_hand()
-            
-            while self.game.is_hand_running():
-                current_player = self.game.current_player
+        try:
+            while self.game.is_game_running():
+                self.game.start_hand()
                 
-                if self._is_ai_player(current_player):
-                    # Get action from AI
-                    action_type, total = self._get_ai_action(current_player)
+                while self.game.is_hand_running():
+                    current_player = self.game.current_player
                     
-                    # Take the action
-                    if action_type == ActionType.RAISE and total is not None:
-                        self.game.take_action(action_type, total=total)
+                    if self._is_ai_player(current_player):
+                        # Get action from AI
+                        action_type, total = self._get_ai_action(current_player)
+                        
+                        # Take the action
+                        if action_type == ActionType.RAISE and total is not None:
+                            self.game.take_action(action_type, total=total)
+                        else:
+                            self.game.take_action(action_type)
                     else:
-                        self.game.take_action(action_type)
-                else:
-                    # Get action from human
-                    self._get_human_action()
-            
-            # Export and replay the hand history
-            path = self.game.export_history('./pgns')
-            self.gui.replay_history(path)
-            
-            # Ask if the game should continue
-            print("\nDo you want to continue playing? (y/n)")
-            response = input().strip().lower()
-            if response != 'y':
+                        # Get action from human
+                        self._get_human_action()
+                
+                # Export and replay the hand history
+                pgn_path = self.game.export_history('./pgns')
+                json_path = self.game.hand_history.export_history_json('./pgns')
+                print(f"\nExported hand history to:")
+                print(f"PGN: {pgn_path}")
+                print(f"JSON: {json_path}")
+                self.gui.replay_history(pgn_path)
+                
+                # Ask if the game should continue
+                time.sleep(10)
                 break
-        
-        print("Game over!")
+                
+            
+            print("Game over!")
+            
+        except Exception as e:
+            print(f"\nError occurred: {str(e)}")
+        finally:
+            # Always clean up the curses session
+            self.gui.cleanup()
+            # Reset the terminal
+            os.system('reset')
 
 
 if __name__ == "__main__":

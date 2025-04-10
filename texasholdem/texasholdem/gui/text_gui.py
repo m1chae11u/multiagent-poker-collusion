@@ -1042,3 +1042,11 @@ class TextGUI(AbstractGUI):
         curses.curs_set(0)
         self.main_block.refresh()
         self.main_block.window.getstr()
+
+    def cleanup(self):
+        """
+        Clean up the curses session and restore terminal to normal state.
+        """
+        curses.nocbreak()
+        curses.echo()
+        curses.endwin()
