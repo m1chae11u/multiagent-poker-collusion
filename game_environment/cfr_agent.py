@@ -50,17 +50,19 @@ class CFRAgent:
 
         # Get betting history
         betting_history = []
-        for action in game.hand_history.current_round.actions:
-            if action.action_type == ActionType.CHECK:
-                betting_history.append("check")
-            elif action.action_type == ActionType.CALL:
-                betting_history.append("call")
-            elif action.action_type == ActionType.RAISE:
-                betting_history.append(f"raise {action.total}")
-            elif action.action_type == ActionType.FOLD:
-                betting_history.append("fold")
-            elif action.action_type == ActionType.ALL_IN:
-                betting_history.append("all_in")
+        current_phase = game.hand_phase
+        if current_phase in game.hand_history:
+            for action in game.hand_history[current_phase].actions:
+                if action.action_type == ActionType.CHECK:
+                    betting_history.append("check")
+                elif action.action_type == ActionType.CALL:
+                    betting_history.append("call")
+                elif action.action_type == ActionType.RAISE:
+                    betting_history.append(f"raise {action.total}")
+                elif action.action_type == ActionType.FOLD:
+                    betting_history.append("fold")
+                elif action.action_type == ActionType.ALL_IN:
+                    betting_history.append("all_in")
 
         return {
             "board_cards": board_cards,
