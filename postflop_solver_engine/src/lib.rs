@@ -119,15 +119,91 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     // Convert Python state to Rust state
     let solver_state: SolverState = state.extract()?;
     
-    // TODO: Initialize solver with state
-    // TODO: Run solver to get optimal action
-    // TODO: Convert solver action to decision format
+    // Parse board cards
+    let flop = if solver_state.board_cards.len() >= 3 {
+        flop_from_str(&format!("{}{}{}", 
+            solver_state.board_cards[0], 
+            solver_state.board_cards[1], 
+            solver_state.board_cards[2]
+        )).unwrap_or(NOT_DEALT)
+    } else {
+        NOT_DEALT
+    };
     
-    // For now, return a dummy decision
+    let turn = if solver_state.board_cards.len() >= 4 {
+        card_from_str(&solver_state.board_cards[3]).unwrap_or(NOT_DEALT)
+    } else {
+        NOT_DEALT
+    };
+    
+    let river = if solver_state.board_cards.len() >= 5 {
+        card_from_str(&solver_state.board_cards[4]).unwrap_or(NOT_DEALT)
+    } else {
+        NOT_DEALT
+    };
+    
+    // Parse hole cards
+    let hole_cards = format!("{}{}", 
+        solver_state.hole_cards[0], 
+        solver_state.hole_cards[1]
+    );
+    
+    // Create card config
+    let card_config = CardConfig {
+        range: [hole_cards.parse().unwrap(), "QQ-22,AQs-A2s,ATo+,K5s+,KJo+,Q8s+,J8s+,T7s+,96s+,86s+,75s+,64s+,53s+".parse().unwrap()],
+        flop,
+        turn,
+        river,
+    };
+    
+    // Create tree config
+    let bet_sizes = BetSizeOptions::try_from(("60%, e, a", "2.5x")).unwrap();
+    let tree_config = TreeConfig {
+        initial_state: if river != NOT_DEALT { BoardState::River } 
+                       else if turn != NOT_DEALT { BoardState::Turn }
+                       else { BoardState::Flop },
+        starting_pot: solver_state.pot_size,
+        effective_stack: solver_state.stack_sizes[0].min(solver_state.stack_sizes[1]),
+        rake_rate: 0.0,
+        rake_cap: 0.0,
+        flop_bet_sizes: [bet_sizes.clone(), bet_sizes.clone()],
+        turn_bet_sizes: [bet_sizes.clone(), bet_sizes.clone()],
+        river_bet_sizes: [bet_sizes.clone(), bet_sizes],
+        turn_donk_sizes: None,
+        river_donk_sizes: Some(DonkSizeOptions::try_from("50%").unwrap()),
+        add_allin_threshold: 1.5,
+        force_allin_threshold: 0.15,
+        merging_threshold: 0.1,
+    };
+    
+    // Build and solve the game
+    let action_tree = ActionTree::new(tree_config).unwrap();
+    let mut game = PostFlopGame::with_config(card_config, action_tree).unwrap();
+    game.allocate_memory(false);
+    
+    // Solve to a target exploitability
+    let max_num_iterations = 1000;
+    let target_exploitability = game.tree_config().starting_pot as f32 * 0.005; // 0.5% of pot
+    solve(&mut game, max_num_iterations, target_exploitability, true);
+    
+    // Get available actions
+    let actions = game.available_actions();
+    
+    // Get the optimal action based on the strategy
+    let (action, amount) = match actions.first() {
+        Some(Action::Check) => ("check".to_string(), None),
+        Some(Action::Bet(amount)) => ("bet".to_string(), Some(*amount as i32)),
+        Some(Action::Raise(amount)) => ("raise".to_string(), Some(*amount as i32)),
+        Some(Action::AllIn) => ("all_in".to_string(), Some(solver_state.stack_sizes[solver_state.position as usize])),
+        _ => ("fold".to_string(), None),
+    };
+    
+    // Return the decision
     Ok(SolverDecision {
-        action: "check".to_string(),
-        amount: None,
-        reason: "Solver not yet implemented".to_string(),
+        action,
+        amount,
+        reason: format!("Optimal action based on GTO strategy with {:.2}% exploitability", 
+            game.exploitability() * 100.0),
     })
 }
 

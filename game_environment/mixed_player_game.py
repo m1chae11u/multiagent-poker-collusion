@@ -5,12 +5,13 @@ This module provides a game where some players are controlled by LLMs and others
 
 import os
 import time
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set, Union
 from dotenv import load_dotenv
 from texasholdem.game.game import TexasHoldEm
 from texasholdem.gui.text_gui import TextGUI
 from texasholdem.game.action_type import ActionType
 from game_environment.llm_agent import LLMAgent
+from game_environment.cfr_agent import CFRAgent
 
 
 class MixedPlayerGame:
@@ -24,7 +25,8 @@ class MixedPlayerGame:
         big_blind: int = 5,
         small_blind: int = 2,
         max_players: int = 6,
-        ai_player_ids: Optional[List[int]] = None,
+        llm_player_ids: Optional[List[int]] = None,
+        cfr_player_ids: Optional[List[int]] = None,
         openai_model: Optional[str] = None,
         openai_api_key: Optional[str] = None
     ):
@@ -36,7 +38,8 @@ class MixedPlayerGame:
             big_blind: The big blind amount
             small_blind: The small blind amount
             max_players: The maximum number of players
-            ai_player_ids: The IDs of players controlled by AI. If None, players 0 and 1 will be AI-controlled.
+            llm_player_ids: The IDs of players controlled by LLM. If None, players 0 and 1 will be LLM-controlled.
+            cfr_player_ids: The IDs of players controlled by CFR solver. If None, player 2 will be CFR-controlled.
             openai_model: The model name to use. If None, will try to get from .env file
             openai_api_key: The API key. If None, will try to get from .env file
         """
@@ -47,16 +50,27 @@ class MixedPlayerGame:
         self.gui = TextGUI(game=self.game)
         
         # Set up AI players
-        if ai_player_ids is None:
-            ai_player_ids = [0, 1]  # Default to players 0 and 1 being AI-controlled
+        if llm_player_ids is None:
+            llm_player_ids = [0, 1]  # Default to players 0 and 1 being LLM-controlled
         
-        self.ai_player_ids = set(ai_player_ids)
+        if cfr_player_ids is None:
+            cfr_player_ids = [2]  # Default to player 2 being CFR-controlled
+        
+        self.llm_player_ids = set(llm_player_ids)
+        self.cfr_player_ids = set(cfr_player_ids)
+        self.ai_player_ids = self.llm_player_ids.union(self.cfr_player_ids)
         self.human_player_ids = set(range(max_players)) - self.ai_player_ids
         
-        # Initialize LLM agents
+        # Initialize AI agents
         self.ai_agents = {}
-        for player_id in self.ai_player_ids:
+        
+        # Initialize LLM agents
+        for player_id in self.llm_player_ids:
             self.ai_agents[player_id] = LLMAgent(model=openai_model, api_key=openai_api_key)
+        
+        # Initialize CFR agents
+        for player_id in self.cfr_player_ids:
+            self.ai_agents[player_id] = CFRAgent()
     
     def _is_ai_player(self, player_id: int) -> bool:
         """
@@ -145,13 +159,14 @@ class MixedPlayerGame:
 
 
 if __name__ == "__main__":
-    # Create a mixed player game with 6 players, where players 0 and 1 are AI-controlled
+    # Create a mixed player game with 6 players, where players 0 and 1 are LLM-controlled and player 2 is CFR-controlled
     game = MixedPlayerGame(
         buyin=500,
         big_blind=5,
         small_blind=2,
         max_players=6,
-        ai_player_ids=[0, 1],
+        llm_player_ids=[0, 1],
+        cfr_player_ids=[2],
         openai_model="gpt-4"
     )
     

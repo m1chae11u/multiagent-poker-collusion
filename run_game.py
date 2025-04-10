@@ -17,14 +17,16 @@ def main():
     parser.add_argument("--big-blind", type=int, default=5, help="The big blind amount")
     parser.add_argument("--small-blind", type=int, default=2, help="The small blind amount")
     parser.add_argument("--max-players", type=int, default=6, help="The maximum number of players")
-    parser.add_argument("--ai-players", type=str, default="0,1", help="Comma-separated list of AI player IDs")
+    parser.add_argument("--llm-players", type=str, default="0,1", help="Comma-separated list of LLM player IDs")
+    parser.add_argument("--cfr-players", type=str, default="2", help="Comma-separated list of CFR player IDs")
     parser.add_argument("--model", type=str, default="gpt-4", help="The OpenAI model to use")
     parser.add_argument("--api-key", type=str, default=None, help="The OpenAI API key")
     
     args = parser.parse_args()
     
-    # Parse AI player IDs
-    ai_player_ids = [int(id_str) for id_str in args.ai_players.split(",")]
+    # Parse player IDs
+    llm_player_ids = [int(id_str) for id_str in args.llm_players.split(",")] if args.llm_players else []
+    cfr_player_ids = [int(id_str) for id_str in args.cfr_players.split(",")] if args.cfr_players else []
     
     # Create the game
     game = MixedPlayerGame(
@@ -32,7 +34,8 @@ def main():
         big_blind=args.big_blind,
         small_blind=args.small_blind,
         max_players=args.max_players,
-        ai_player_ids=ai_player_ids,
+        llm_player_ids=llm_player_ids,
+        cfr_player_ids=cfr_player_ids,
         openai_model=args.model,
         openai_api_key=args.api_key
     )
