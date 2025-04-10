@@ -88,10 +88,13 @@ pub use range::*;
 pub use solver::*;
 pub use utility::*;
 
-use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use pyo3::wrap_pyfunction;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SolverState {
@@ -110,6 +113,7 @@ pub struct SolverDecision {
     pub reason: String,
 }
 
+#[cfg(feature = "python")]
 #[pyfunction]
 fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     // Convert Python state to Rust state
@@ -127,6 +131,7 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     })
 }
 
+#[cfg(feature = "python")]
 #[pymodule]
 fn poker_solver(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_optimal_action, m)?)?;
