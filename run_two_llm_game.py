@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Script to run the mixed player poker game.
+Script to run the two LLM poker game.
 """
 
 import os
 import argparse
-from game_environment.mixed_player_game import MixedPlayerGame
+from game_environment.two_llm_game import TwoLLMGame
 
 
 def main():
     """
     Main function to run the game.
     """
-    parser = argparse.ArgumentParser(description="Run a mixed player poker game")
+    parser = argparse.ArgumentParser(description="Run a two LLM poker game")
     parser.add_argument("--buyin", type=int, default=500, help="The amount of chips each player starts with")
     parser.add_argument("--big-blind", type=int, default=5, help="The big blind amount")
     parser.add_argument("--small-blind", type=int, default=2, help="The small blind amount")
@@ -27,7 +27,7 @@ def main():
     llm_player_ids = [int(id_str) for id_str in args.llm_players.split(",")] if args.llm_players else []
     
     # Create the game
-    game = MixedPlayerGame(
+    game = TwoLLMGame(
         buyin=args.buyin,
         big_blind=args.big_blind,
         small_blind=args.small_blind,
@@ -42,4 +42,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main() 

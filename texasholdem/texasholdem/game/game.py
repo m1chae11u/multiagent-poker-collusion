@@ -984,6 +984,8 @@ class TexasHoldEm:
         if hand_phase == HandPhase.PREFLOP:
             self.current_player = self.bb_loc + 1
 
+        # Track which players have acted in this betting round
+        acted_players = set()
         player_queue = deque(self.active_iter(self.current_player))
 
         while not self._is_hand_over():
@@ -1023,8 +1025,9 @@ class TexasHoldEm:
             )
 
             self._take_action(action, total=total)
+            acted_players.add(self.current_player)
 
-            # On raise, everyone eligible gets to take another action
+            # On raise, only players who haven't acted yet get to take another action
             if action == ActionType.RAISE:
                 # WSOP 2021 Rule 96
                 # An all-in raise less than the previous raise shall not reopen
@@ -1037,13 +1040,12 @@ class TexasHoldEm:
                     # Exception for rule 96, set this
                     self.last_raise = raise_sum
 
-                # reset the round (i.e. as if the betting round started here)
-                player_queue = deque(self.active_iter(self.current_player))
-
-                # Throwaway current player
-                # Edge case: active_iter already excludes ALL_IN
-                if self.players[self.current_player].state != PlayerState.ALL_IN:
-                    player_queue.popleft()
+                # Get all active players who haven't acted yet
+                new_players = [
+                    p for p in self.active_iter(self.current_player)
+                    if p not in acted_players
+                ]
+                player_queue = deque(new_players)
 
         # consolidate betting to all pots in this betting round
         for i in range(first_pot, len(self.pots)):

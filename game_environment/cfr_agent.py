@@ -99,7 +99,18 @@ class CFRAgent:
         # Only use solver for postflop situations
         if game.hand_phase.name == "PREFLOP":
             # For preflop, use a simple strategy (can be improved later)
-            return ActionType.CALL, None
+            # Get available moves
+            available_moves = game.get_available_moves()
+            
+            # If CALL is available, use it
+            if ActionType.CALL in available_moves.action_types:
+                return ActionType.CALL, None
+            # Otherwise use CHECK if available
+            elif ActionType.CHECK in available_moves.action_types:
+                return ActionType.CHECK, None
+            # If neither is available, use FOLD
+            else:
+                return ActionType.FOLD, None
 
         # Format the game state for the solver
         state_dict = self._format_game_state(game, player_id)
