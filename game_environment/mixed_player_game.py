@@ -4,7 +4,8 @@ This module provides a game where some players are controlled by LLMs and others
 """
 
 import os
-from typing import List, Dict, Optional, Tuple, Set
+import time
+from typing import List, Dict, Optional, Tuple, Set, Union
 from dotenv import load_dotenv
 from texasholdem.game.game import TexasHoldEm
 from texasholdem.gui.text_gui import TextGUI
@@ -23,7 +24,7 @@ class MixedPlayerGame:
         big_blind: int = 5,
         small_blind: int = 2,
         max_players: int = 6,
-        ai_player_ids: Optional[List[int]] = None,
+        llm_player_ids: Optional[List[int]] = None,
         openai_model: Optional[str] = None,
         openai_api_key: Optional[str] = None
     ):
@@ -35,7 +36,7 @@ class MixedPlayerGame:
             big_blind: The big blind amount
             small_blind: The small blind amount
             max_players: The maximum number of players
-            ai_player_ids: The IDs of players controlled by AI. If None, players 0 and 1 will be AI-controlled.
+            llm_player_ids: The IDs of players controlled by LLM. If None, players 0 and 1 will be LLM-controlled.
             openai_model: The model name to use. If None, will try to get from .env file
             openai_api_key: The API key. If None, will try to get from .env file
         """
@@ -46,15 +47,17 @@ class MixedPlayerGame:
         self.gui = TextGUI(game=self.game)
         
         # Set up AI players
-        if ai_player_ids is None:
-            ai_player_ids = [0, 1]  # Default to players 0 and 1 being AI-controlled
+        if llm_player_ids is None:
+            llm_player_ids = [0, 1]  # Default to players 0 and 1 being LLM-controlled
         
-        self.ai_player_ids = set(ai_player_ids)
-        self.human_player_ids = set(range(max_players)) - self.ai_player_ids
+        self.llm_player_ids = set(llm_player_ids)
+        self.human_player_ids = set(range(max_players)) - self.llm_player_ids
+        
+        # Initialize AI agents
+        self.ai_agents = {}
         
         # Initialize LLM agents
-        self.ai_agents = {}
-        for player_id in self.ai_player_ids:
+        for player_id in self.llm_player_ids:
             self.ai_agents[player_id] = LLMAgent(model=openai_model, api_key=openai_api_key)
     
     def _is_ai_player(self, player_id: int) -> bool:
@@ -67,7 +70,7 @@ class MixedPlayerGame:
         Returns:
             True if the player is controlled by AI, False otherwise
         """
-        return player_id in self.ai_player_ids
+        return player_id in self.llm_player_ids
     
     def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int]]:
         """
@@ -79,6 +82,9 @@ class MixedPlayerGame:
         Returns:
             A tuple of (action_type, total) where total is the amount to raise to (if applicable)
         """
+        if player_id not in self.llm_player_ids:
+            raise ValueError(f"Player {player_id} is not an LLM player")
+            
         agent = self.ai_agents[player_id]
         return agent.get_action(self.game, player_id)
     
@@ -99,46 +105,67 @@ class MixedPlayerGame:
         """
         Run the game until it's over.
         """
-        while self.game.is_game_running():
-            self.game.start_hand()
-            
-            while self.game.is_hand_running():
-                current_player = self.game.current_player
+        error_message = None
+        try:
+            while self.game.is_game_running():
+                self.game.start_hand()
                 
-                if self._is_ai_player(current_player):
-                    # Get action from AI
-                    action_type, total = self._get_ai_action(current_player)
+                while self.game.is_hand_running():
+                    current_player = self.game.current_player
                     
-                    # Take the action
-                    if action_type == ActionType.RAISE and total is not None:
-                        self.game.take_action(action_type, total=total)
+                    if self._is_ai_player(current_player):
+                        # Get action from AI
+                        action_type, total = self._get_ai_action(current_player)
+                        
+                        # Take the action
+                        if action_type == ActionType.RAISE and total is not None:
+                            self.game.take_action(action_type, total=total)
+                        else:
+                            self.game.take_action(action_type)
                     else:
-                        self.game.take_action(action_type)
-                else:
-                    # Get action from human
-                    self._get_human_action()
-            
-            # Export and replay the hand history
-            path = self.game.export_history('./pgns')
-            self.gui.replay_history(path)
-            
-            # Ask if the game should continue
-            print("\nDo you want to continue playing? (y/n)")
-            response = input().strip().lower()
-            if response != 'y':
+                        # Get action from human
+                        self._get_human_action()
+                
+                # Export and replay the hand history
+                pgn_path = self.game.export_history('./data/pgns')
+                json_path = self.game.hand_history.export_history_json('./data/json')
+                print(f"\nExported hand history to:")
+                print(f"PGN: {pgn_path}")
+                print(f"JSON: {json_path}")
+                self.gui.replay_history(pgn_path)
+                
+                # Ask if the game should continue
+                time.sleep(10)
                 break
-        
-        print("Game over!")
+                
+            
+            print("Game over!")
+            
+        except Exception as e:
+            # Save the error message
+            error_message = f"\nError occurred: {str(e)}"
+        else:
+            # No error occurred
+            error_message = None
+        finally:
+            # Always clean up the curses session
+            self.gui.hide()
+            # Reset the terminal
+            os.system('reset')
+            
+            # Display the error message after cleanup if there was one
+            if error_message:
+                print(error_message)
 
 
 if __name__ == "__main__":
-    # Create a mixed player game with 6 players, where players 0 and 1 are AI-controlled
+    # Create a mixed player game with 6 players, where players 0 and 1 are LLM-controlled
     game = MixedPlayerGame(
         buyin=500,
         big_blind=5,
         small_blind=2,
         max_players=6,
-        ai_player_ids=[0, 1],
+        llm_player_ids=[0, 1],
         openai_model="gpt-4"
     )
     

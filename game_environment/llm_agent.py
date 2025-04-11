@@ -188,7 +188,8 @@ Choose one of the available actions. For raise, specify the amount."""
                     pass
             
             # If we couldn't extract a specific amount, use the minimum raise
-            return ActionType.RAISE, None
+            min_raise = game.min_raise()
+            return ActionType.RAISE, min_raise
         
         # Default to fold if we couldn't parse the response
         return ActionType.FOLD, None
