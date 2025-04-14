@@ -111,7 +111,13 @@ pub struct SolverState {
     #[pyo3(get, set)]
     pub position: i32,
     #[pyo3(get, set)]
-    pub betting_history: Vec<String>,
+    pub current_bet: i32,
+    #[pyo3(get, set)]
+    pub must_call: bool,
+    #[pyo3(get, set)]
+    pub valid_actions: Vec<String>,
+    #[pyo3(get, set)]
+    pub betting_round: String,
 }
 
 #[cfg(feature = "python")]
@@ -124,7 +130,10 @@ impl SolverState {
         pot_size: i32,
         stack_sizes: Vec<i32>,
         position: i32,
-        betting_history: Vec<String>,
+        current_bet: i32,
+        must_call: bool,
+        valid_actions: Vec<String>,
+        betting_round: String,
     ) -> Self {
         SolverState {
             board_cards,
@@ -132,7 +141,10 @@ impl SolverState {
             pot_size,
             stack_sizes,
             position,
-            betting_history,
+            current_bet,
+            must_call,
+            valid_actions,
+            betting_round,
         }
     }
 }
@@ -220,7 +232,7 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     
     // Solve with just 1 iteration for faster speed
     let max_num_iterations = 1; // Changed from 50 to 1
-    let target_exploitability = game.tree_config().starting_pot as f32 * 0.05;
+    let target_exploitability = game.tree_config().starting_pot as f32 * 0.07;
     solve(&mut game, max_num_iterations, target_exploitability, true);
     
     // Get available actions

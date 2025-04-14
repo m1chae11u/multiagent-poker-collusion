@@ -60,21 +60,33 @@ class CFRAgent:
         # Get position (0 for first player, 1 for second player)
         position = player_id % 2
 
-        # Get betting history
-        betting_history = []
-        current_phase = game.hand_phase
-        if current_phase in game.hand_history:
-            for action in game.hand_history[current_phase].actions:
-                if action.action_type == ActionType.CHECK:
-                    betting_history.append("check")
-                elif action.action_type == ActionType.CALL:
-                    betting_history.append("call")
-                elif action.action_type == ActionType.RAISE:
-                    betting_history.append(f"raise {action.total}")
-                elif action.action_type == ActionType.FOLD:
-                    betting_history.append("fold")
-                elif action.action_type == ActionType.ALL_IN:
-                    betting_history.append("all_in")
+        # Get current betting information
+        available_moves = game.get_available_moves()
+        current_bet = 0
+        must_call = False
+        valid_actions = []
+
+        # Determine current bet and whether player must call
+        if ActionType.CALL in available_moves.action_types:
+            must_call = True
+            # Find the last raise or bet to determine call amount
+            for action in reversed(game.hand_history[game.hand_phase].actions):
+                if action.action_type in [ActionType.RAISE, ActionType.BET]:
+                    current_bet = action.total
+                    break
+
+        # Get valid actions
+        for action_type in available_moves.action_types:
+            if action_type == ActionType.CHECK:
+                valid_actions.append("check")
+            elif action_type == ActionType.CALL:
+                valid_actions.append("call")
+            elif action_type == ActionType.RAISE:
+                valid_actions.append("raise")
+            elif action_type == ActionType.FOLD:
+                valid_actions.append("fold")
+            elif action_type == ActionType.ALL_IN:
+                valid_actions.append("all_in")
 
         return {
             "board_cards": board_cards,
@@ -82,7 +94,10 @@ class CFRAgent:
             "pot_size": pot_amount,
             "stack_sizes": stack_sizes,
             "position": position,
-            "betting_history": betting_history
+            "current_bet": current_bet,
+            "must_call": must_call,
+            "valid_actions": valid_actions,
+            "betting_round": game.hand_phase.name
         }
 
     def get_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int]]:
@@ -122,7 +137,10 @@ class CFRAgent:
             pot_size=state_dict["pot_size"],
             stack_sizes=state_dict["stack_sizes"],
             position=state_dict["position"],
-            betting_history=state_dict["betting_history"]
+            current_bet=state_dict["current_bet"],
+            must_call=state_dict["must_call"],
+            valid_actions=state_dict["valid_actions"],
+            betting_round=state_dict["betting_round"]
         )
         
         # Get the optimal action from the solver
