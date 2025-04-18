@@ -72,7 +72,7 @@ class MixedPlayerGame:
         """
         return player_id in self.llm_player_ids
     
-    def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int]]:
+    def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int], str]:
         """
         Get the action from an AI player.
         
@@ -80,7 +80,10 @@ class MixedPlayerGame:
             player_id: The ID of the AI player
             
         Returns:
-            A tuple of (action_type, total) where total is the amount to raise to (if applicable)
+            A tuple of (action_type, total, reason) where:
+                - action_type is the type of action to take
+                - total is the amount to raise to (if applicable)
+                - reason is the explanation for the action
         """
         if player_id not in self.llm_player_ids:
             raise ValueError(f"Player {player_id} is not an LLM player")
@@ -115,7 +118,7 @@ class MixedPlayerGame:
                     
                     if self._is_ai_player(current_player):
                         # Get action from AI
-                        action_type, total = self._get_ai_action(current_player)
+                        action_type, total, reason = self._get_ai_action(current_player)
                         
                         # Take the action
                         if action_type == ActionType.RAISE and total is not None:
