@@ -130,7 +130,7 @@ Current game state:
 
         return actions
 
-    def get_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int]]:
+    def get_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int], Optional[str]]:
         """
         Get the next action from the LLM.
         
@@ -139,57 +139,70 @@ Current game state:
             player_id: The ID of the player making the decision
             
         Returns:
-            A tuple of (action_type, total) where total is the amount to raise to (if applicable)
+            A tuple of (action_type, total, reason) where:
+                - action_type is the type of action to take
+                - total is the amount to raise to (if applicable)
+                - reason is the explanation for the action (None for LLM agents)
         """
-        # Format the game state for the prompt
-        formatted_state = self._format_game_state(game, player_id)
+        # Format the game state for the LLM
+        state_str = self._format_game_state(game, player_id)
         
         # Get available actions
         available_actions = self._get_available_actions(game, player_id)
-        actions_str = "\n".join([f"- {action.value}: {desc}" for action, desc in available_actions.items()])
         
-        # Create the prompt
+        # Create the prompt for the LLM
         prompt = f"""You are playing Texas Hold'em poker. Here is the current game state:
 
-{formatted_state}
+{state_str}
 
 Available actions:
-{actions_str}
+{', '.join(f'{action.name}: {desc}' for action, desc in available_actions.items())}
 
-Choose one of the available actions. For raise, specify the amount."""
+What action would you take? Respond with just the action name and amount (if raising) in the format:
+ACTION [amount]
 
-        # Get the response from the model
+For example:
+CALL
+RAISE 100
+FOLD
+CHECK
+ALL_IN
+
+Your response:"""
+        
+        # Get the response from the LLM
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=50
+            messages=[
+                {"role": "system", "content": "You are a poker player making decisions in a Texas Hold'em game. Respond with just the action and amount (if raising)."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=10
         )
         
-        # Get the response text
-        response_text = response.choices[0].message.content.lower()
-        
         # Parse the response
-        if "fold" in response_text:
-            return ActionType.FOLD, None
-        elif "check" in response_text:
-            return ActionType.CHECK, None
-        elif "call" in response_text:
-            return ActionType.CALL, None
-        elif "all_in" in response_text:
-            return ActionType.ALL_IN, None
-        elif "raise" in response_text:
-            # Try to extract the raise amount
-            raise_match = re.search(r'raise\s+(\d+)', response_text)
-            if raise_match:
-                try:
-                    raise_amount = int(raise_match.group(1))
-                    return ActionType.RAISE, raise_amount
-                except ValueError:
-                    pass
-            
-            # If we couldn't extract a specific amount, use the minimum raise
-            min_raise = game.min_raise()
-            return ActionType.RAISE, min_raise
+        action_str = response.choices[0].message.content.strip().upper()
         
-        # Default to fold if we couldn't parse the response
-        return ActionType.FOLD, None
+        # Extract action type and amount
+        match = re.match(r"(\w+)(?:\s+(\d+))?", action_str)
+        if not match:
+            return ActionType.FOLD, None, None
+            
+        action_type_str, amount_str = match.groups()
+        
+        # Convert action type string to ActionType enum
+        try:
+            action_type = ActionType[action_type_str]
+        except KeyError:
+            return ActionType.FOLD, None, None
+            
+        # Convert amount string to int if present
+        total = int(amount_str) if amount_str else None
+        
+        # Validate the action
+        if action_type not in available_actions:
+            return ActionType.FOLD, None, None
+            
+        # Return the action without a reason
+        return action_type, total, None

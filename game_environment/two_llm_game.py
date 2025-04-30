@@ -80,7 +80,7 @@ class TwoLLMGame:
         """
         return player_id in self.ai_player_ids
     
-    def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int]]:
+    def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int], Optional[str]]:
         """
         Get the action from an AI player.
         
@@ -88,7 +88,8 @@ class TwoLLMGame:
             player_id: The ID of the AI player
             
         Returns:
-            A tuple of (action_type, total) where total is the amount to raise to (if applicable)
+            A tuple of (action_type, total, reason) where total is the amount to raise to (if applicable)
+            and reason is the explanation for the action (if available)
         """
         agent = self.ai_agents[player_id]
         return agent.get_action(self.game, player_id)
@@ -107,13 +108,15 @@ class TwoLLMGame:
                 print(f"  Hand: {[str(card) for card in self.game.hands[i]]}")
         print("=======================\n")
     
-    def _print_action(self, player_id: int, action_type: ActionType, total: Optional[int] = None):
+    def _print_action(self, player_id: int, action_type: ActionType, total: Optional[int] = None, reason: Optional[str] = None):
         """Print a player's action."""
         player_type = "LLM" if player_id in self.llm_player_ids else "CFR"
         action_str = action_type.name
         if total is not None:
             action_str += f" to {total}"
         print(f"Player {player_id} ({player_type}): {action_str}")
+        if reason and player_id not in self.llm_player_ids:
+            print(f"  Reason: {reason}")
     
     def _print_round_start(self, phase: HandPhase):
         """Print the start of a betting round."""
@@ -185,10 +188,10 @@ class TwoLLMGame:
                     
                     if self._is_ai_player(current_player):
                         # Get action from AI
-                        action_type, total = self._get_ai_action(current_player)
+                        action_type, total, reason = self._get_ai_action(current_player)
                         
                         # Print the action
-                        self._print_action(current_player, action_type, total)
+                        self._print_action(current_player, action_type, total, reason)
                         
                         # Take the action
                         if action_type == ActionType.RAISE and total is not None:

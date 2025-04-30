@@ -111,7 +111,13 @@ pub struct SolverState {
     #[pyo3(get, set)]
     pub position: i32,
     #[pyo3(get, set)]
-    pub betting_history: Vec<String>,
+    pub current_bet: i32,
+    #[pyo3(get, set)]
+    pub must_call: bool,
+    #[pyo3(get, set)]
+    pub valid_actions: Vec<String>,
+    #[pyo3(get, set)]
+    pub betting_round: String,
 }
 
 #[cfg(feature = "python")]
@@ -124,7 +130,10 @@ impl SolverState {
         pot_size: i32,
         stack_sizes: Vec<i32>,
         position: i32,
-        betting_history: Vec<String>,
+        current_bet: i32,
+        must_call: bool,
+        valid_actions: Vec<String>,
+        betting_round: String,
     ) -> Self {
         SolverState {
             board_cards,
@@ -132,7 +141,10 @@ impl SolverState {
             pot_size,
             stack_sizes,
             position,
-            betting_history,
+            current_bet,
+            must_call,
+            valid_actions,
+            betting_round,
         }
     }
 }
@@ -220,26 +232,42 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     
     // Solve with just 1 iteration for faster speed
     let max_num_iterations = 1; // Changed from 50 to 1
-    let target_exploitability = game.tree_config().starting_pot as f32 * 0.05;
+    let target_exploitability = game.tree_config().starting_pot as f32 * 0.07;
     solve(&mut game, max_num_iterations, target_exploitability, true);
     
     // Get available actions
     let actions = game.available_actions();
     
-    // Get the optimal action based on the strategy
-    let (action, amount) = match actions.first() {
-        Some(Action::Check) => ("check".to_string(), None),
-        Some(Action::Bet(amount)) => ("bet".to_string(), Some(*amount as i32)),
-        Some(Action::Raise(amount)) => ("raise".to_string(), Some(*amount as i32)),
-        Some(Action::AllIn(_)) => ("all_in".to_string(), Some(solver_state.stack_sizes[solver_state.position as usize])),
-        _ => ("fold".to_string(), None),
-    };
+    // Filter actions based on valid_actions from the solver state
+    let valid_actions_set: std::collections::HashSet<String> = solver_state.valid_actions.iter().cloned().collect();
+    
+    // Find the first action that is in the valid_actions list
+    let (action, amount, reason) = actions.iter()
+        .find_map(|action| {
+            let (action_str, amount) = match action {
+                Action::Check => ("check", None),
+                Action::Bet(amt) => ("bet", Some(*amt as i32)),
+                Action::Raise(amt) => ("raise", Some(*amt as i32)),
+                Action::AllIn(_) => ("all_in", Some(solver_state.stack_sizes[solver_state.position as usize])),
+                Action::None => ("none", None),
+                Action::Fold => ("fold", None),
+                Action::Call => ("call", None),
+                Action::Chance(_) => ("chance", None),
+            };
+            
+            if valid_actions_set.contains(action_str) {
+                Some((action_str.to_string(), amount, format!("Optimal action based on GTO strategy (1 iteration)")))
+            } else {
+                None
+            }
+        })
+        .unwrap_or(("fold".to_string(), None, format!("Defaulting to fold because no valid actions were found in the solver's available actions. Valid actions: {:?}", solver_state.valid_actions)));
     
     // Return the decision
     Ok(SolverDecision {
         action,
         amount,
-        reason: format!("Optimal action based on GTO strategy (1 iteration)"),
+        reason,
     })
 }
 

@@ -9,6 +9,7 @@ from texasholdem.game.action_type import ActionType
 from texasholdem.card.card import Card
 import postflop_solver
 from postflop_solver import SolverState, get_optimal_action
+from preflop_solver import PreflopSolver
 
 class CFRAgent:
     """
@@ -19,7 +20,7 @@ class CFRAgent:
         """
         Initialize the CFR agent.
         """
-        pass
+        self.preflop_solver = PreflopSolver()
 
     def _format_game_state(self, game: TexasHoldEm, player_id: int) -> dict:
         """
@@ -60,21 +61,33 @@ class CFRAgent:
         # Get position (0 for first player, 1 for second player)
         position = player_id % 2
 
-        # Get betting history
-        betting_history = []
-        current_phase = game.hand_phase
-        if current_phase in game.hand_history:
-            for action in game.hand_history[current_phase].actions:
-                if action.action_type == ActionType.CHECK:
-                    betting_history.append("check")
-                elif action.action_type == ActionType.CALL:
-                    betting_history.append("call")
-                elif action.action_type == ActionType.RAISE:
-                    betting_history.append(f"raise {action.total}")
-                elif action.action_type == ActionType.FOLD:
-                    betting_history.append("fold")
-                elif action.action_type == ActionType.ALL_IN:
-                    betting_history.append("all_in")
+        # Get current betting information
+        available_moves = game.get_available_moves()
+        current_bet = 0
+        must_call = False
+        valid_actions = []
+
+        # Determine current bet and whether player must call
+        if ActionType.CALL in available_moves.action_types:
+            must_call = True
+            # Find the last raise or bet to determine call amount
+            for action in reversed(game.hand_history[game.hand_phase].actions):
+                if action.action_type in [ActionType.RAISE, ActionType.BET]:
+                    current_bet = action.total
+                    break
+
+        # Get valid actions
+        for action_type in available_moves.action_types:
+            if action_type == ActionType.CHECK:
+                valid_actions.append("check")
+            elif action_type == ActionType.CALL:
+                valid_actions.append("call")
+            elif action_type == ActionType.RAISE:
+                valid_actions.append("raise")
+            elif action_type == ActionType.FOLD:
+                valid_actions.append("fold")
+            elif action_type == ActionType.ALL_IN:
+                valid_actions.append("all_in")
 
         return {
             "board_cards": board_cards,
@@ -82,10 +95,13 @@ class CFRAgent:
             "pot_size": pot_amount,
             "stack_sizes": stack_sizes,
             "position": position,
-            "betting_history": betting_history
+            "current_bet": current_bet,
+            "must_call": must_call,
+            "valid_actions": valid_actions,
+            "betting_round": game.hand_phase.name
         }
 
-    def get_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int]]:
+    def get_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int], Optional[str]]:
         """
         Get the next action from the solver.
         
@@ -94,23 +110,13 @@ class CFRAgent:
             player_id: The ID of the player making the decision
             
         Returns:
-            A tuple of (action_type, total) where total is the amount to raise to (if applicable)
+            A tuple of (action_type, total, reason) where total is the amount to raise to (if applicable)
+            and reason is the explanation for the action (if available)
         """
-        # Only use solver for postflop situations
+        # Use preflop solver for preflop situations
         if game.hand_phase.name == "PREFLOP":
-            # For preflop, use a simple strategy (can be improved later)
-            # Get available moves
-            available_moves = game.get_available_moves()
-            
-            # If CALL is available, use it
-            if ActionType.CALL in available_moves.action_types:
-                return ActionType.CALL, None
-            # Otherwise use CHECK if available
-            elif ActionType.CHECK in available_moves.action_types:
-                return ActionType.CHECK, None
-            # If neither is available, use FOLD
-            else:
-                return ActionType.FOLD, None
+            action_type, total, reason = self.preflop_solver.get_action(game, player_id)
+            return action_type, total, reason
 
         # Format the game state for the solver
         state_dict = self._format_game_state(game, player_id)
@@ -122,7 +128,10 @@ class CFRAgent:
             pot_size=state_dict["pot_size"],
             stack_sizes=state_dict["stack_sizes"],
             position=state_dict["position"],
-            betting_history=state_dict["betting_history"]
+            current_bet=state_dict["current_bet"],
+            must_call=state_dict["must_call"],
+            valid_actions=state_dict["valid_actions"],
+            betting_round=state_dict["betting_round"]
         )
         
         # Get the optimal action from the solver
@@ -130,19 +139,19 @@ class CFRAgent:
         
         # Convert the solver's decision to an action
         if decision.action == "check":
-            return ActionType.CHECK, None
+            return ActionType.CHECK, None, decision.reason
         elif decision.action == "call":
-            return ActionType.CALL, None
+            return ActionType.CALL, None, decision.reason
         elif decision.action == "fold":
-            return ActionType.FOLD, None
+            return ActionType.FOLD, None, decision.reason
         elif decision.action == "all_in":
-            return ActionType.ALL_IN, None
+            return ActionType.ALL_IN, None, decision.reason
         elif decision.action == "bet" or decision.action == "raise":
             if decision.amount is not None:
-                return ActionType.RAISE, decision.amount
+                return ActionType.RAISE, decision.amount, decision.reason
             else:
                 # If no amount specified, use minimum raise
-                return ActionType.RAISE, game.min_raise()
+                return ActionType.RAISE, game.min_raise(), decision.reason
         
         # Default to fold if we couldn't parse the action
-        return ActionType.FOLD, None 
+        return ActionType.FOLD, None, "Could not parse solver action, defaulting to fold" 
