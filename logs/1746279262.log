@@ -1,0 +1,8 @@
+13:34:22 [INFO] starting regret minimization from scratch
+13:34:22 [INFO] loading     lookup              /Users/justinku/Documents/GitHub/multiagent-poker-collusion/pgcopy/isomorphism.preflop
+13:34:22 [INFO] loading     lookup              /Users/justinku/Documents/GitHub/multiagent-poker-collusion/pgcopy/isomorphism.flop
+13:34:22 [INFO] loading     lookup              /Users/justinku/Documents/GitHub/multiagent-poker-collusion/pgcopy/isomorphism.turn
+13:34:25 [INFO] loading     lookup              /Users/justinku/Documents/GitHub/multiagent-poker-collusion/pgcopy/isomorphism.river
+13:34:59 [INFO] beginning training loop (64)
+13:37:27 [INFO] saving      blueprint           /Users/justinku/Documents/GitHub/multiagent-poker-collusion/pgcopy/blueprint
+13:38:45 [INFO] connecting to database

@@ -1,6 +1,6 @@
 """
 Two LLM game implementation for Texas Hold'em poker.
-This module provides a game where two players are controlled by LLMs and the rest are CFR agents.
+This module provides a game where two players are controlled by LLMs and the rest are CFR agents using robopoker.
 """
 
 import os
@@ -11,12 +11,12 @@ from texasholdem.game.game import TexasHoldEm
 from texasholdem.game.action_type import ActionType
 from texasholdem.game.hand_phase import HandPhase
 from game_environment.llm_agent import LLMAgent
-from game_environment.cfr_agent import CFRAgent
+from game_environment.robopoker_agent import RobopokerAgent
 
 
 class TwoLLMGame:
     """
-    A Texas Hold'em game where two players are controlled by LLMs and the rest are CFR agents.
+    A Texas Hold'em game where two players are controlled by LLMs and the rest are CFR agents using robopoker.
     """
     
     def __init__(
@@ -44,6 +44,10 @@ class TwoLLMGame:
         # Load environment variables from .env file
         load_dotenv()
         
+        # Ensure robopoker binary exists
+        if not os.path.exists("robopoker/target/release/robopoker"):
+            raise RuntimeError("robopoker binary not found. Please build it first.")
+        
         self.game = TexasHoldEm(buyin=buyin, big_blind=big_blind, small_blind=small_blind, max_players=max_players)
         
         # Set up AI players
@@ -61,9 +65,9 @@ class TwoLLMGame:
         for player_id in self.llm_player_ids:
             self.ai_agents[player_id] = LLMAgent(model=openai_model, api_key=openai_api_key)
         
-        # Initialize CFR agents
+        # Initialize Robopoker agents
         for player_id in self.cfr_player_ids:
-            self.ai_agents[player_id] = CFRAgent()
+            self.ai_agents[player_id] = RobopokerAgent()
         
         # Track starting chips for each phase
         self.phase_start_chips = {}
@@ -102,7 +106,7 @@ class TwoLLMGame:
         print(f"Pot: {self.game._get_last_pot().get_total_amount()}")
         print("\nPlayers:")
         for i, player in enumerate(self.game.players):
-            player_type = "LLM" if i in self.llm_player_ids else "CFR"
+            player_type = "LLM" if i in self.llm_player_ids else "Robopoker"
             print(f"Player {i} ({player_type}): {player.chips} chips")
             if i in self.game.hands:
                 print(f"  Hand: {[str(card) for card in self.game.hands[i]]}")
@@ -110,12 +114,12 @@ class TwoLLMGame:
     
     def _print_action(self, player_id: int, action_type: ActionType, total: Optional[int] = None, reason: Optional[str] = None):
         """Print a player's action."""
-        player_type = "LLM" if player_id in self.llm_player_ids else "CFR"
+        player_type = "LLM" if player_id in self.llm_player_ids else "Robopoker"
         action_str = action_type.name
         if total is not None:
             action_str += f" to {total}"
         print(f"Player {player_id} ({player_type}): {action_str}")
-        if reason and player_id not in self.llm_player_ids:
+        if reason:
             print(f"  Reason: {reason}")
     
     def _print_round_start(self, phase: HandPhase):
@@ -132,7 +136,7 @@ class TwoLLMGame:
         self.phase_start_chips = {i: player.chips for i, player in enumerate(self.game.players)}
         print("\nStarting chips for this round:")
         for i, chips in self.phase_start_chips.items():
-            player_type = "LLM" if i in self.llm_player_ids else "CFR"
+            player_type = "LLM" if i in self.llm_player_ids else "Robopoker"
             print(f"Player {i} ({player_type}): {chips} chips")
         
         self._print_game_state()
@@ -142,7 +146,7 @@ class TwoLLMGame:
         print(f"\n{'='*20} {phase.name} Summary {'='*20}")
         print("Chip changes in this round:")
         for i, player in enumerate(self.game.players):
-            player_type = "LLM" if i in self.llm_player_ids else "CFR"
+            player_type = "LLM" if i in self.llm_player_ids else "Robopoker"
             start_chips = self.phase_start_chips[i]
             end_chips = player.chips
             change = end_chips - start_chips
@@ -168,7 +172,7 @@ class TwoLLMGame:
                 self.phase_start_chips = {i: player.chips for i, player in enumerate(self.game.players)}
                 print("\nStarting chips for this hand:")
                 for i, chips in self.phase_start_chips.items():
-                    player_type = "LLM" if i in self.llm_player_ids else "CFR"
+                    player_type = "LLM" if i in self.llm_player_ids else "Robopoker"
                     print(f"Player {i} ({player_type}): {chips} chips")
                 
                 self._print_game_state()
@@ -231,7 +235,7 @@ class TwoLLMGame:
 
 
 if __name__ == "__main__":
-    # Create a two LLM game with 6 players, where players 0 and 1 are LLM-controlled and the rest are CFR-controlled
+    # Create a two LLM game with 6 players, where players 0 and 1 are LLM-controlled and the rest are Robopoker-controlled
     game = TwoLLMGame(
         buyin=500,
         big_blind=5,
@@ -242,4 +246,4 @@ if __name__ == "__main__":
     )
     
     # Run the game
-    game.run_game() 
+    game.run_game()
