@@ -276,33 +276,31 @@ class SettleHistory:
     """
     A map from pot_id to a tuple of winner data :code:`amount, best rank, list of winners`
     """
+    final_chips: Dict[int, int]
+    """
+    A map from player_id to the final chip count
+    """
 
     def to_string(self, canon_ids: Dict[int, int]) -> str:
         """
         Arguments:
             canon_ids (Dict[int, int]): Map of old_id -> new_id where the new btn_loc is 0
         Returns:
-            str: The string representation of the settle history: new cards revealed,
-                and the winners per pot: (pot_id, total_amount, best_rank, winners list)
+            str: The string representation of the settle history:
+                new cards revealed, pot winners, and final chip counts
         """
-        pot_lists = []
-        for pot_id, (amount, best_rank, winners_list) in self.pot_winners.items():
-            pot_lists.append(
-                (
-                    pot_id,
-                    amount,
-                    best_rank,
-                    [canon_ids[winner] for winner in winners_list],
-                )
-            )
-        pot_strs = [
-            f"(Pot {pot_id},{amount},{best_rank},{str(winners_list)})"
-            for pot_id, amount, best_rank, winners_list in pot_lists
-        ]
-        return (
-            f"New Cards: [{','.join(str(card) for card in self.new_cards)}]\n"
-            f"Winners: {';'.join(pot_strs)}"
-        )
+        new_cards = f"New Cards: [{','.join(str(card) for card in self.new_cards)}]"
+        
+        pot_winners_str = "Pot Winners:\n"
+        for pot_id, (amount, best_rank, winners) in self.pot_winners.items():
+            winners_str = ",".join(str(canon_ids[winner]) for winner in winners)
+            pot_winners_str += f"Pot {pot_id}: {amount} to {winners_str} with rank {best_rank}\n"
+            
+        final_chips_str = "Final Chips:\n"
+        for player_id, chips in self.final_chips.items():
+            final_chips_str += f"Player {canon_ids[player_id]}: {chips}\n"
+            
+        return new_cards + "\n" + pot_winners_str + final_chips_str
 
     @staticmethod
     def from_string(string: str) -> SettleHistory:
@@ -314,36 +312,50 @@ class SettleHistory:
         Returns:
             SettleHistory: The settle history as represented by the string
         """
-        cards_str, winners_str = string.split("\n")
-        _, cards_str = cards_str.split("[")
-        cards_str, _ = cards_str.split("]")
+        lines = string.split("\n")
+        card_str = lines[0]
+        _, card_str = card_str.split("[")
+        card_str, _ = card_str.split("]")
 
-        if cards_str:
-            new_cards = [Card(string) for string in cards_str.split(",")]
+        if card_str:
+            new_cards = [Card(string) for string in card_str.split(",")]
         else:
             new_cards = []
 
-        _, winners_str = winners_str.split(": ")
-        pot_winners_data = [
-            winner_str.strip("()")
-            .replace(" ", "")
-            .replace("[", "")
-            .replace("]", "")
-            .split(",")
-            for winner_str in winners_str.split(";")
-        ]
-        pot_winners_data = [
-            (data[0], data[1], data[2], data[3:]) for data in pot_winners_data
-        ]
-        pot_winners = {
-            int(pot_name[(pot_name.find("Pot") + 3) :]): (
-                int(amount),
-                int(best_rank),
-                [int(winner) for winner in winners_list],
-            )
-            for pot_name, amount, best_rank, winners_list in pot_winners_data
-        }
-        return SettleHistory(new_cards, pot_winners)
+        pot_winners = {}
+        final_chips = {}
+        current_section = None
+
+        for line in lines[1:]:
+            line = line.strip()
+            if not line:
+                continue
+                
+            if line == "Pot Winners:":
+                current_section = "pot_winners"
+                continue
+            elif line == "Final Chips:":
+                current_section = "final_chips"
+                continue
+                
+            if current_section == "pot_winners":
+                if line.startswith("Pot "):
+                    pot_data = line.split(": ")
+                    pot_id = int(pot_data[0].split()[1])
+                    pot_info = pot_data[1].split(" to ")
+                    amount = int(pot_info[0])
+                    winners_info = pot_info[1].split(" with rank ")
+                    winners = [int(w) for w in winners_info[0].split(",")]
+                    best_rank = int(winners_info[1])
+                    pot_winners[pot_id] = (amount, best_rank, winners)
+            elif current_section == "final_chips":
+                if line.startswith("Player "):
+                    player_data = line.split(": ")
+                    player_id = int(player_data[0].split()[1])
+                    chips = int(player_data[1])
+                    final_chips[player_id] = chips
+
+        return SettleHistory(new_cards, pot_winners, final_chips)
 
     def __str__(self) -> str:
         pot_lists = []
@@ -730,6 +742,10 @@ class History:
                         "winners": winners
                     }
                     for pot_id, (amount, best_rank, winners) in settle.pot_winners.items()
+                },
+                "final_chips": {
+                    str(player_id): chips
+                    for player_id, chips in settle.final_chips.items()
                 }
             }
         
