@@ -9,7 +9,7 @@ from texasholdem.game.action_type import ActionType
 from texasholdem.card.card import Card
 import postflop_solver
 from postflop_solver import SolverState, get_optimal_action
-from preflop_solver import PreflopSolver
+import random
 
 class CFRAgent:
     """
@@ -20,7 +20,41 @@ class CFRAgent:
         """
         Initialize the CFR agent.
         """
-        self.preflop_solver = PreflopSolver()
+        pass
+
+    def _get_random_preflop_action(self, game: TexasHoldEm, player_id: int) -> Tuple[ActionType, Optional[int], Optional[str]]:
+        """
+        Get a random valid action for preflop situations.
+        
+        Args:
+            game: The Texas Hold'em game
+            player_id: The ID of the player making the decision
+            
+        Returns:
+            A tuple of (action_type, total, reason) where total is the amount to raise to (if applicable)
+            and reason is the explanation for the action
+        """
+        available_moves = game.get_available_moves()
+        valid_actions = []
+        
+        # Collect valid actions
+        if ActionType.CHECK in available_moves.action_types:
+            valid_actions.append((ActionType.CHECK, None, "Random check"))
+        if ActionType.CALL in available_moves.action_types:
+            valid_actions.append((ActionType.CALL, None, "Random call"))
+        if ActionType.RAISE in available_moves.action_types:
+            # For raise, randomly choose between min raise and max raise
+            min_raise = game.min_raise()
+            max_raise = game.players[player_id].chips
+            raise_amount = random.randint(min_raise, max_raise)
+            valid_actions.append((ActionType.RAISE, raise_amount, "Random raise"))
+        if ActionType.FOLD in available_moves.action_types:
+            valid_actions.append((ActionType.FOLD, None, "Random fold"))
+        if ActionType.ALL_IN in available_moves.action_types:
+            valid_actions.append((ActionType.ALL_IN, None, "Random all-in"))
+            
+        # Randomly select an action
+        return random.choice(valid_actions)
 
     def _format_game_state(self, game: TexasHoldEm, player_id: int) -> dict:
         """
@@ -113,10 +147,9 @@ class CFRAgent:
             A tuple of (action_type, total, reason) where total is the amount to raise to (if applicable)
             and reason is the explanation for the action (if available)
         """
-        # Use preflop solver for preflop situations
+        # Use random actions for preflop situations
         if game.hand_phase.name == "PREFLOP":
-            action_type, total, reason = self.preflop_solver.get_action(game, player_id)
-            return action_type, total, reason
+            return self._get_random_preflop_action(game, player_id)
 
         # Format the game state for the solver
         state_dict = self._format_game_state(game, player_id)

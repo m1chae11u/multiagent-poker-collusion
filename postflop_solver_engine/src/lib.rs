@@ -231,23 +231,29 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
     game.allocate_memory(false);
     
     // Solve with just 1 iteration for faster speed
-    let max_num_iterations = 1; // Changed from 50 to 1
-    let target_exploitability = game.tree_config().starting_pot as f32 * 0.07;
+    let max_num_iterations = 50;
+    let target_exploitability = game.tree_config().starting_pot as f32 * 0.01;
     solve(&mut game, max_num_iterations, target_exploitability, true);
     
-    // Get available actions
+    // Get available actions and their probabilities from the solver
     let actions = game.available_actions();
+    let strategy = if game.is_compression_enabled() {
+        regret_matching_compressed(game.node().regrets_compressed(), actions.len())
+    } else {
+        regret_matching(game.node().regrets(), actions.len())
+    };
     
     // Filter actions based on valid_actions from the solver state
     let valid_actions_set: std::collections::HashSet<String> = solver_state.valid_actions.iter().cloned().collect();
     
-    // Find the first action that is in the valid_actions list
+    // Find the action with highest probability that is in the valid_actions list
     let (action, amount, reason) = actions.iter()
-        .find_map(|action| {
+        .zip(strategy.iter())
+        .filter_map(|(action, &prob)| {
             let (action_str, amount) = match action {
                 Action::Check => ("check", None),
-                Action::Bet(amt) => ("bet", Some(*amt as i32)),
-                Action::Raise(amt) => ("raise", Some(*amt as i32)),
+                Action::Bet(amt) => ("bet", Some(*amt)),
+                Action::Raise(amt) => ("raise", Some(*amt)),
                 Action::AllIn(_) => ("all_in", Some(solver_state.stack_sizes[solver_state.position as usize])),
                 Action::None => ("none", None),
                 Action::Fold => ("fold", None),
@@ -255,11 +261,16 @@ fn get_optimal_action(state: &PyAny) -> PyResult<SolverDecision> {
                 Action::Chance(_) => ("chance", None),
             };
             
-            if valid_actions_set.contains(action_str) {
-                Some((action_str.to_string(), amount, format!("Optimal action based on GTO strategy (1 iteration)")))
+            if valid_actions_set.contains(&action_str.to_string()) {
+                Some((action_str.to_string(), amount, prob))
             } else {
                 None
             }
+        })
+        .max_by(|(_, _, prob_a): &(String, Option<i32>, f32), (_, _, prob_b): &(String, Option<i32>, f32)| 
+            prob_a.partial_cmp(prob_b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(action, amount, prob)| {
+            (action, amount, format!("Optimal action based on GTO strategy (probability: {:.2}%)", prob * 100.0))
         })
         .unwrap_or(("fold".to_string(), None, format!("Defaulting to fold because no valid actions were found in the solver's available actions. Valid actions: {:?}", solver_state.valid_actions)));
     

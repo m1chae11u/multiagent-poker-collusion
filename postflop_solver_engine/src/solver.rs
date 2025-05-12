@@ -358,7 +358,7 @@ fn solve_recursive<T: Game>(
 /// Computes the strategy by regret-matching algorithm.
 #[cfg(feature = "custom-alloc")]
 #[inline]
-fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32, StackAlloc> {
+pub fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32, StackAlloc> {
     let mut strategy = Vec::with_capacity_in(regret.len(), StackAlloc);
     let uninit = strategy.spare_capacity_mut();
     uninit.iter_mut().zip(regret).for_each(|(s, r)| {
@@ -382,7 +382,7 @@ fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32, StackAlloc> {
 /// Computes the strategy by regret-matching algorithm.
 #[cfg(not(feature = "custom-alloc"))]
 #[inline]
-fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32> {
+pub fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32> {
     let mut strategy = Vec::with_capacity(regret.len());
     let uninit = strategy.spare_capacity_mut();
     uninit.iter_mut().zip(regret).for_each(|(s, r)| {
@@ -406,7 +406,7 @@ fn regret_matching(regret: &[f32], num_actions: usize) -> Vec<f32> {
 /// Computes the strategy by regret-matching algorithm.
 #[cfg(feature = "custom-alloc")]
 #[inline]
-fn regret_matching_compressed(regret: &[i16], num_actions: usize) -> Vec<f32, StackAlloc> {
+pub fn regret_matching_compressed(regret: &[i16], num_actions: usize) -> Vec<f32, StackAlloc> {
     let mut strategy = Vec::with_capacity_in(regret.len(), StackAlloc);
     strategy.extend(regret.iter().map(|&r| r.max(0) as f32));
 
@@ -426,7 +426,7 @@ fn regret_matching_compressed(regret: &[i16], num_actions: usize) -> Vec<f32, St
 /// Computes the strategy by regret-matching algorithm.
 #[cfg(not(feature = "custom-alloc"))]
 #[inline]
-fn regret_matching_compressed(regret: &[i16], num_actions: usize) -> Vec<f32> {
+pub fn regret_matching_compressed(regret: &[i16], num_actions: usize) -> Vec<f32> {
     let mut strategy = Vec::with_capacity(regret.len());
     strategy.extend(regret.iter().map(|&r| r.max(0) as f32));
 

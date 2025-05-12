@@ -109,11 +109,7 @@ impl PostFlopGame {
         if self.is_terminal_node() {
             Vec::new()
         } else {
-            self.node()
-                .children()
-                .iter()
-                .map(|c| c.lock().prev_action)
-                .collect()
+            self.node().children().iter().map(|c| c.lock().prev_action).collect()
         }
     }
 
@@ -994,8 +990,8 @@ impl PostFlopGame {
 
     /// Returns the reference to the current node.
     #[inline]
-    fn node(&self) -> MutexGuardLike<PostFlopNode> {
-        self.node_arena[self.node_history.last().cloned().unwrap_or(0)].lock()
+    pub fn node(&self) -> MutexGuardLike<PostFlopNode> {
+        self.node_arena[*self.node_history.last().unwrap_or(&0)].lock()
     }
 
     /// Returns the index of the given node.

@@ -7,8 +7,11 @@ def main():
     hole_cards = ["Jh", "Th"]  # Player's hole cards
     pot_size = 100  # Current pot size
     stack_sizes = [900, 900]  # Remaining stack sizes for both players
-    position = 0  # Player's position (0 for OOP, 1 for IP)
-    betting_history = ["check", "bet_75"]  # History of betting actions
+    position = 1  # Player's position (0 for OOP, 1 for IP)
+    current_bet = 75  # Current bet amount
+    must_call = True  # Whether player must call
+    valid_actions = ["check", "call", "raise", "fold", "all_in"]  # Available actions
+    betting_round = "FLOP"  # Current betting round
 
     # Create a solver state using the imported SolverState class
     state = SolverState(
@@ -17,7 +20,10 @@ def main():
         pot_size=pot_size,
         stack_sizes=stack_sizes,
         position=position,
-        betting_history=betting_history
+        current_bet=current_bet,
+        must_call=must_call,
+        valid_actions=valid_actions,
+        betting_round=betting_round
     )
 
     try:
