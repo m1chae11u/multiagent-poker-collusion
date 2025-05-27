@@ -153,22 +153,22 @@ Current game state:
         # Create the prompt for the LLM
         prompt = f"""You are playing Texas Hold'em poker. Here is the current game state:
 
-{state_str}
+        {state_str}
 
-Available actions:
-{', '.join(f'{action.name}: {desc}' for action, desc in available_actions.items())}
+        Available actions:
+        {', '.join(f'{action.name}: {desc}' for action, desc in available_actions.items())}
 
-What action would you take? Respond with just the action name and amount (if raising) in the format:
-ACTION [amount]
+        What action would you take? Respond with just the action name and amount (if raising) in the format:
+        ACTION [amount]
 
-For example:
-CALL
-RAISE 100
-FOLD
-CHECK
-ALL_IN
+        For example:
+        CALL
+        RAISE 100
+        FOLD
+        CHECK
+        ALL_IN
 
-Your response:"""
+        Your response:"""
         
         # Get the response from the LLM
         response = self.client.chat.completions.create(
