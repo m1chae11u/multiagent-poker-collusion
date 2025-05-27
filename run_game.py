@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--buyin", type=int, default=500, help="The amount of chips each player starts with")
     parser.add_argument("--big-blind", type=int, default=5, help="The big blind amount")
     parser.add_argument("--small-blind", type=int, default=2, help="The small blind amount")
-    parser.add_argument("--max-players", type=int, default=6, help="The maximum number of players")
+    parser.add_argument("--max-players", type=int, default=2, help="The maximum number of players")
     parser.add_argument("--llm-players", type=str, default="0,1", help="Comma-separated list of LLM player IDs")
     parser.add_argument("--model", type=str, default="gpt-4", help="The OpenAI model to use")
     parser.add_argument("--api-key", type=str, default=None, help="The OpenAI API key")
