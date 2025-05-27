@@ -11,6 +11,7 @@ from texasholdem.game.game import TexasHoldEm
 from texasholdem.gui.text_gui import TextGUI
 from texasholdem.game.action_type import ActionType
 from game_environment.llm_agent import LLMAgent
+from game_environment.collusion_llm_agent import CollusionLLMAgent
 
 
 class MixedPlayerGame:
@@ -25,6 +26,7 @@ class MixedPlayerGame:
         small_blind: int = 2,
         max_players: int = 6,
         llm_player_ids: Optional[List[int]] = None,
+        collusion_llm_player_ids: Optional[List[int]] = None,
         openai_model: Optional[str] = None,
         openai_api_key: Optional[str] = None
     ):
@@ -36,7 +38,8 @@ class MixedPlayerGame:
             big_blind: The big blind amount
             small_blind: The small blind amount
             max_players: The maximum number of players
-            llm_player_ids: The IDs of players controlled by LLM. If None, players 0 and 1 will be LLM-controlled.
+            llm_player_ids: The IDs of players controlled by regular LLM. If None, players 0 and 1 will be LLM-controlled.
+            collusion_llm_player_ids: The IDs of players controlled by collusion LLM. If None, no players will be collusion LLM-controlled.
             openai_model: The model name to use. If None, will try to get from .env file
             openai_api_key: The API key. If None, will try to get from .env file
         """
@@ -50,15 +53,23 @@ class MixedPlayerGame:
         if llm_player_ids is None:
             llm_player_ids = [0, 1]  # Default to players 0 and 1 being LLM-controlled
         
+        if collusion_llm_player_ids is None:
+            collusion_llm_player_ids = []  # Default to no collusion LLM players
+        
         self.llm_player_ids = set(llm_player_ids)
-        self.human_player_ids = set(range(max_players)) - self.llm_player_ids
+        self.collusion_llm_player_ids = set(collusion_llm_player_ids)
+        self.human_player_ids = set(range(max_players)) - self.llm_player_ids - self.collusion_llm_player_ids
         
         # Initialize AI agents
         self.ai_agents = {}
         
-        # Initialize LLM agents
+        # Initialize regular LLM agents
         for player_id in self.llm_player_ids:
             self.ai_agents[player_id] = LLMAgent(model=openai_model, api_key=openai_api_key)
+            
+        # Initialize collusion LLM agents
+        for player_id in self.collusion_llm_player_ids:
+            self.ai_agents[player_id] = CollusionLLMAgent(model=openai_model, api_key=openai_api_key)
     
     def _is_ai_player(self, player_id: int) -> bool:
         """
@@ -70,7 +81,7 @@ class MixedPlayerGame:
         Returns:
             True if the player is controlled by AI, False otherwise
         """
-        return player_id in self.llm_player_ids
+        return player_id in self.llm_player_ids or player_id in self.collusion_llm_player_ids
     
     def _get_ai_action(self, player_id: int) -> Tuple[ActionType, Optional[int], str]:
         """
@@ -85,7 +96,7 @@ class MixedPlayerGame:
                 - total is the amount to raise to (if applicable)
                 - reason is the explanation for the action
         """
-        if player_id not in self.llm_player_ids:
+        if player_id not in self.llm_player_ids and player_id not in self.collusion_llm_player_ids:
             raise ValueError(f"Player {player_id} is not an LLM player")
             
         agent = self.ai_agents[player_id]
@@ -162,13 +173,14 @@ class MixedPlayerGame:
 
 
 if __name__ == "__main__":
-    # Create a mixed player game with 6 players, where players 0 and 1 are LLM-controlled
+    # Create a mixed player game with 6 players, where players 0 and 1 are LLM-controlled and player 2 is collusion LLM-controlled
     game = MixedPlayerGame(
         buyin=500,
         big_blind=5,
         small_blind=2,
         max_players=6,
         llm_player_ids=[0, 1],
+        collusion_llm_player_ids=[2],
         openai_model="gpt-4"
     )
     
