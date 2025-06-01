@@ -8,6 +8,7 @@ def analyze_winnings():
     
     # Initialize variables
     total_winnings = 0
+    total_ev = 0
     total_hands = 0
     big_blind = None
     
@@ -45,6 +46,21 @@ def analyze_winnings():
                 # Calculate winnings for this hand
                 hand_winnings = total_final_chips - total_start_chips
                 total_winnings += hand_winnings
+                
+                # Calculate EV for this hand
+                if 'preflop_equity' in data['prehand']:
+                    # Get preflop equity for players 0 and 1
+                    equity_0 = data['prehand']['preflop_equity']['0']
+                    equity_1 = data['prehand']['preflop_equity']['1']
+                    total_equity = equity_0 + equity_1
+                    
+                    # Get pot size at showdown
+                    pot_size = data['settle']['pot_size']
+                    
+                    # Calculate EV
+                    hand_ev = (total_equity * pot_size) - total_start_chips
+                    total_ev += hand_ev
+                
                 total_hands += 1
                 
         except Exception as e:
@@ -57,11 +73,14 @@ def analyze_winnings():
     
     # Calculate BB/100 (assuming 100 hands)
     bb_per_100 = (total_winnings / big_blind) * (100 / total_hands)
+    ev_bb_per_100 = (total_ev / big_blind) * (100 / total_hands)
     
     # Print results
     print(f"Total hands analyzed: {total_hands}")
     print(f"Total winnings: {total_winnings} chips")
+    print(f"Total EV: {total_ev:.2f} chips")
     print(f"BB/100: {bb_per_100:.2f}")
+    print(f"EV BB/100: {ev_bb_per_100:.2f}")
 
 if __name__ == "__main__":
     analyze_winnings() 

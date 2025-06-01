@@ -51,10 +51,10 @@ class MixedPlayerGame:
         
         # Set up AI players
         if llm_player_ids is None:
-            llm_player_ids = [0, 1]  # Default to players 0 and 1 being LLM-controlled
+            llm_player_ids = [0]  # Default to player 0 being LLM-controlled
         
         if collusion_llm_player_ids is None:
-            collusion_llm_player_ids = []  # Default to no collusion LLM players
+            collusion_llm_player_ids = [1, 2]  # Default to players 1 and 2 being collusion LLM-controlled        
         
         self.llm_player_ids = set(llm_player_ids)
         self.collusion_llm_player_ids = set(collusion_llm_player_ids)
@@ -68,8 +68,11 @@ class MixedPlayerGame:
             self.ai_agents[player_id] = LLMAgent(model=openai_model, api_key=openai_api_key)
             
         # Initialize collusion LLM agents
-        for player_id in self.collusion_llm_player_ids:
-            self.ai_agents[player_id] = CollusionLLMAgent(model=openai_model, api_key=openai_api_key)
+        if len(collusion_llm_player_ids) == 2:
+            # Create a pair of colluding agents
+            player1, player2 = sorted(collusion_llm_player_ids)
+            self.ai_agents[player1] = CollusionLLMAgent(model=openai_model, api_key=openai_api_key, teammate_id=player2)
+            self.ai_agents[player2] = CollusionLLMAgent(model=openai_model, api_key=openai_api_key, teammate_id=player1)
     
     def _is_ai_player(self, player_id: int) -> bool:
         """
